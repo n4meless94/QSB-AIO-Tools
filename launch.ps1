@@ -40,6 +40,13 @@
             throw 'The release ZIP or its SHA-256 checksum is unavailable. Contact IT.'
         }
         $expectedHash = $Matches[1]
+        # ponytail: retain version folders; add cleanup only if disk usage becomes a problem.
+        $destination = Join-Path $env:LOCALAPPDATA "QSB-AIO-Tools\releases\$tag"
+        $executable = Join-Path $destination 'QSB AIO Tools\QSB AIO Tools.exe'
+        if (Get-Process -Name 'QSB AIO Tools' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $executable }) {
+            Write-Host "QSB AIO Tools $tag is already open."
+            return
+        }
         $zipPath = Join-Path ([IO.Path]::GetTempPath()) ('QSB-AIO-Tools-' + [guid]::NewGuid().ToString('N') + '.zip')
         Write-Host "Downloading QSB AIO Tools $tag..."
         Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/$repository/releases/download/$tag/QSB-AIO-Tools.zip" -OutFile $zipPath -TimeoutSec 120
@@ -57,14 +64,11 @@
         } finally {
             $archive.Dispose()
         }
-        # ponytail: retain version folders; add cleanup only if disk usage becomes a problem.
-        $destination = Join-Path $env:LOCALAPPDATA "QSB-AIO-Tools\releases\$tag"
         try {
             Expand-Archive -LiteralPath $zipPath -DestinationPath $destination -Force
         } catch {
             throw 'Could not save the app files. Close QSB AIO Tools, check that your profile folder is writable, and try again.'
         }
-        $executable = Join-Path $destination 'QSB AIO Tools\QSB AIO Tools.exe'
         Write-Host "Opening QSB AIO Tools $tag. BitLocker recovery-key backup is disabled in this public build."
         Start-Process -FilePath $executable -WorkingDirectory (Split-Path -Parent $executable)
     } finally {
